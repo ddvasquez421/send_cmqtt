@@ -3,126 +3,258 @@ import time
 import streamlit as st
 import json
 import platform
-import threading # Necesitamos threading para el loop del cliente MQTT
+import threading
 
 # --- Streamlit Page Configuration ---
 # !!! ESTO DEBE SER LA PRIMERA LLAMADA A UN COMANDO st.!!!
-st.set_page_config(page_title="CyberControl MQTT", layout="centered", page_icon="🧬")
+st.set_page_config(page_title="CyberControl MQTT", layout="wide", page_icon="🧬") # Cambiado a 'wide' para más espacio cyberpunk
 # --- End Page Configuration ---
 
 
-# --- CSS for Neon/Cyber Aesthetics ---
-# Los selectores se han ajustado para ser más robustos usando data-testid
-neon_css = """
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+# --- CSS for Exaggerated Cyberpunk Aesthetics ---
+# Selectores ajustados y colores exagerados
+cyberpunk_css = """
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 /* Aplicar fuente y fondo a la app principal */
 [data-testid="stAppViewContainer"] {
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Share Tech Mono', monospace; /* Fuente monoespacio para cuerpo */
     /* Intento de fondo GIF - puede variar según la implementación de Streamlit */
+    /* Mantenemos tu GIF, puede ser difícil que cubra 100% siempre */
     background: url('https://media.giphy.com/media/3o6ZtaO9BZHcOjmErm/giphy.gif') no-repeat center center fixed;
     background-size: cover;
-    color: #00fff7 !important; /* Color de texto general */
+    background-color: #0a001a; /* Fondo de respaldo muy oscuro */
+    color: #00ffff !important; /* Color de texto principal (cian neón) */
 }
 
-/* Asegurar que otros elementos dentro de la app también usen la fuente */
+/* Asegurar que otros elementos usen la fuente principal */
 div {
-    font-family: 'Orbitron', sans-serif;
+    font-family: 'Share Tech Mono', monospace;
 }
 
-
+/* Títulos y encabezados con fuente Orbitron y brillo */
 h1, h2, h3, h4, h5 {
-    color: #00ffff !important; /* Importante para asegurar el color */
-    text-shadow: 0 0 10px #00ffff;
+    font-family: 'Orbitron', sans-serif !important;
+    color: #ff00ff !important; /* Magenta neón */
+    text-shadow: 0 0 5px #ff00ff, 0 0 15px #ff00ff, 0 0 30px #ff00ff; /* Efecto de brillo */
+    margin-top: 0.8em; /* Espacio superior */
+    margin-bottom: 0.4em; /* Espacio inferior */
 }
 
-/* Estilo para botones */
+h1 { font-size: 2.5em !important; text-align: center; } /* Título principal más grande y centrado */
+h3 { color: #00ff00 !important; text-shadow: 0 0 5px #00ff00; } /* Subtítulos en verde neón */
+
+
+/* Estilo para Botones */
 [data-testid="stButton"] button {
-    background: transparent;
-    border: 2px solid #00fff7 !important;
-    color: #00fff7 !important;
+    background: rgba(0, 255, 255, 0.1); /* Cian semi-transparente */
+    border: 2px solid #00ffff !important; /* Borde cian neón */
+    color: #00ffff !important; /* Texto cian neón */
     padding: 0.75em 2em;
-    font-size: 16px;
-    border-radius: 12px;
-    box-shadow: 0 0 10px #00fff7, 0 0 20px #00b7ff;
+    font-size: 1em; /* Tamaño de fuente relativo */
+    border-radius: 5px; /* Bordes ligeramente redondeados */
+    box-shadow: 0 0 8px #00ffff, 0 0 12px #00ffff inset; /* Sombra exterior e interior para brillo */
     transition: all 0.3s ease-in-out;
-    display: inline-block; /* Asegura que el hover funcione bien */
-    width: 100%; /* Para que ocupe el ancho de la columna */
+    letter-spacing: 0.1em; /* Espaciado entre letras */
+    text-transform: uppercase; /* Texto en mayúsculas */
 }
 
 [data-testid="stButton"] button:hover {
-    background-color: #00fff7 !important;
-    color: black !important;
-    box-shadow: 0 0 25px #00fff7;
+    background-color: #00ffff !important; /* Fondo cian sólido al pasar el ratón */
+    color: #0d001a !important; /* Texto oscuro */
+    box-shadow: 0 0 12px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff inset; /* Brillo más intenso */
 }
 
 /* Estilo para Slider */
+/* El track completo del slider */
+[data-testid="stSlider"] div[role="slider"] {
+    background: #1a0033 !important; /* Fondo oscuro del track */
+    border-radius: 8px;
+    height: 8px; /* Altura del track */
+}
+
 /* La barra de progreso del slider */
 [data-testid="stSlider"] div[role="slider"] div:nth-child(1) {
-    background: linear-gradient(to right, #00fff7, #00b7ff) !important;
-    border-radius: 8px;
+     background: linear-gradient(to right, #ff00ff, #00ffff) !important; /* Gradiente magenta a cian */
+     border-radius: 8px;
 }
 
 /* El pulgar (handle) del slider */
 [data-testid="stSlider"] div[role="slider"] div:nth-child(2) {
-    background: #00ffff !important;
-    border: 2px solid #00fff7 !important;
+    background: #00ffff !important; /* Cian sólido */
+    border: 3px solid #ff00ff !important; /* Borde magenta */
+    width: 20px; /* Tamaño del pulgar */
+    height: 20px;
+    top: -6px; /* Ajuste vertical */
+    box-shadow: 0 0 8px #00ffff; /* Brillo para el pulgar */
 }
 
-/* El track vacío del slider */
-[data-testid="stSlider"] div[role="slider"] div:nth-child(3) {
-     background: #1f1f2e !important; /* Fondo oscuro similar al input */
-}
-
-
-/* Estilo para label de slider y otros elementos de texto */
+/* Estilo para label y valor del slider */
 [data-testid="stSlider"] label,
-.st-cc /* Posible clase para texto de slider value */ {
-    color: #00fff7 !important;
+[data-testid="stText"] { /* Selector común para texto generado por st.write */
+    color: #00ff00 !important; /* Verde neón para valores */
+    font-size: 1.1em;
+    margin-bottom: 0.5em;
 }
 
 
 /* Estilo para Input de texto */
 [data-testid="stTextInput"] input {
-    background-color: #1f1f2e !important;
-    color: #00ffcc !important; /* Color del texto ingresado */
-    border: 1px solid #00ffcc !important;
-    border-radius: 8px;
-    padding: 0.75em; /* Añadir padding para que coincida con botones */
+    background-color: #1a0033 !important; /* Fondo oscuro */
+    color: #00ff00 !important; /* Texto verde neón */
+    border: 1px solid #00ff00 !important; /* Borde verde neón */
+    border-radius: 5px;
+    padding: 0.75em;
+    box-shadow: 0 0 5px #00ff00 inset; /* Brillo interior */
+    font-family: 'Share Tech Mono', monospace; /* Asegurar fuente monoespacio */
 }
 
 /* Estilo para label de input */
 [data-testid="stTextInput"] label {
-     color: #00fff7 !important;
+     color: #ff00ff !important; /* Magenta neón */
+     font-size: 1.1em;
+     margin-bottom: 0.5em;
+}
+/* Placeholder text color */
+[data-testid="stTextInput"] input::placeholder {
+    color: #888888 !important; /* Gris oscuro */
+    opacity: 0.8 !important;
 }
 
 
+/* Estilo para File Uploader */
+[data-testid="stFileUploader"] {
+    background-color: #1a0033 !important; /* Fondo oscuro */
+    border: 2px dashed #ff00ff !important; /* Borde punteado magenta neón */
+    border-radius: 5px;
+    padding: 1em;
+    text-align: center;
+    color: #00ff00 !important; /* Texto verde neón */
+}
+[data-testid="stFileUploader"] label {
+     color: #00ff00 !important; /* Texto dentro del label */
+}
+[data-testid="stFileUploader"] button {
+     /* Estilo específico para el botón 'Browse files' dentro del uploader */
+     background: rgba(255, 0, 255, 0.1) !important; /* Magenta semi-transparente */
+     border: 1px solid #ff00ff !important;
+     color: #ff00ff !important;
+     box-shadow: 0 0 5px #ff00ff !important;
+}
+[data-testid="stFileUploader"] button:hover {
+     background: #ff00ff !important;
+     color: #0d001a !important;
+     box-shadow: 0 0 10px #ff00ff !important;
+}
+
+
+/* Estilo para Expander */
+[data-testid="stExpander"] label {
+    background-color: #33004d !important; /* Un púrpura oscuro */
+    color: #00ffff !important; /* Cian neón */
+    font-family: 'Orbitron', sans-serif !important; /* Fuente de encabezado */
+    padding: 0.7em 1em !important;
+    border-radius: 5px;
+    border: 1px solid #00ffff !important;
+    margin-bottom: 0.5em;
+    cursor: pointer; /* Indicar que es clickeable */
+    box-shadow: 0 0 5px #00ffff;
+}
+[data-testid="stExpander"] div[data-testid="stExpanderToggleIcon"] {
+     color: #00ffff !important; /* Color del icono de expansión */
+}
+[data-testid="stExpander"] div[data-testid="stVerticalBlock"] {
+     /* Contenido del expander */
+     border-left: 2px solid #ff00ff !important; /* Borde magenta a la izquierda del contenido */
+     padding-left: 1em;
+     margin-left: 0.5em;
+}
+
+
+/* Línea divisoria */
 hr {
-    border-top: 1px solid #00fff7 !important;
+    border-top: 2px dashed #ff00ff !important; /* Línea punteada magenta neón */
+    margin-top: 2em;
+    margin-bottom: 2em;
 }
 
-footer {
-    color: #00fff7 !important;
-}
-
-/* Estilo para mensajes de éxito, advertencia, etc. */
+/* Estilo para mensajes de estado (success, warning, error) */
 [data-testid="stAlert"]-success {
-    background-color: rgba(0, 255, 247, 0.1) !important; /* Fondo semi-transparente neón */
-    color: #00fff7 !important;
-    border-left: 5px solid #00fff7 !important;
+    background-color: rgba(0, 255, 0, 0.1) !important; /* Verde neón semi-transparente */
+    color: #00ff00 !important; /* Texto verde neón */
+    border-left: 5px solid #00ff00 !important; /* Borde verde */
+    border-radius: 5px;
 }
 [data-testid="stAlert"]-warning {
-    background-color: rgba(255, 165, 0, 0.1) !important; /* Fondo semi-transparente naranja */
-    color: orange !important;
-    border-left: 5px solid orange !important;
+    background-color: rgba(255, 255, 0, 0.1) !important; /* Amarillo neón semi-transparente */
+    color: #ffff00 !important; /* Texto amarillo neón */
+    border-left: 5px solid #ffff00 !important; /* Borde amarillo */
+    border-radius: 5px;
 }
-/* Puedes añadir para info y error si los usas */
+[data-testid="stAlert"]-error {
+    background-color: rgba(255, 0, 0, 0.1) !important; /* Rojo neón semi-transparente */
+    color: #ff0000 !important; /* Texto rojo neón */
+    border-left: 5px solid #ff0000 !important; /* Borde rojo */
+    border-radius: 5px;
+}
+/* Añadir para info si lo usas */
+[data-testid="stAlert"]-info {
+    background-color: rgba(0, 255, 255, 0.1) !important; /* Cian neón semi-transparente */
+    color: #00ffff !important; /* Texto cian neón */
+    border-left: 5px solid #00ffff !important; /* Borde cian */
+    border-radius: 5px;
+}
+
+
+/* Estilo para el footer (si Streamlit lo renderiza) */
+footer {
+    color: #ff00ff !important; /* Magenta neón */
+    font-size: 0.9em;
+    text-align: center;
+    margin-top: 3em;
+}
+
+/* Ajustes para el caption */
+.st-be { /* Clase probable para st.caption */
+    color: #00ff00 !important; /* Verde neón */
+    text-align: center;
+    display: block; /* Asegurar que se centre */
+    margin-bottom: 2em;
+}
+
+/* Posible ajuste para st.write output si no es st.text */
+/* Asegura que el texto de st.write (como el valor del slider) tenga el color correcto */
+.stMarkdown {
+     color: #00ffff !important; /* Cian neón */
+}
+
+
+/* Scrollbar con estilo neón */
+::-webkit-scrollbar {
+    width: 12px; /* Ancho de la barra de scroll */
+}
+
+::-webkit-scrollbar-track {
+    background: #1a0033; /* Fondo oscuro del track */
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, #00ffff, #ff00ff); /* Gradiente neón en el pulgar */
+    border-radius: 10px;
+    border: 2px solid #0d001a; /* Borde oscuro */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to bottom, #ff00ff, #00ffff); /* Invertir gradiente al pasar el ratón */
+}
+
 
 </style>
 """
 
-# Inject the CSS into the Streamlit app (Ahora después de set_page_config)
-st.markdown(neon_css, unsafe_allow_html=True)
+# Inject the CSS into the Streamlit app
+st.markdown(cyberpunk_css, unsafe_allow_html=True)
 # --- End CSS ---
 
 
@@ -140,14 +272,18 @@ def on_connect(client, userdata, flags, rc):
         print("Conectado al broker MQTT!")
         # Suscribirse a tópicos aquí si necesitas recibir mensajes
         # client.subscribe(topic_subscribe_cmqtt_r)
+        # Opcional: Actualizar estado de conexión en session_state si es seguro (puede requerir manejo de hilos más avanzado)
+        # st.session_state['mqtt_connected'] = True
     else:
         print(f"Fallo la conexión, codigo: {rc}")
-        # Podrías guardar un estado de error en session_state aquí, pero con cuidado
-        # st.session_state['mqtt_status'] = 'error_connect' # Peligroso llamar st. aquí
+        # Opcional: Actualizar estado de conexión con error
+        # st.session_state['mqtt_connected'] = False
+        # st.session_state['mqtt_error'] = f"Connect failed: {rc}"
+
 
 def on_publish(client, userdata, result):
-    print("Dato publicado.")
-    # No llamar st.success aquí
+    # print("Dato publicado.") # Comentado para reducir ruido en consola
+    pass # No llamar st.success aquí
 
 def on_message(client, userdata, msg):
     # Este callback se ejecuta en otro hilo. NO LLAMAR st.XXX aquí.
@@ -157,34 +293,42 @@ def on_message(client, userdata, msg):
         print(f"Mensaje recibido en tópico {msg.topic}: {message_payload}")
         # Guardar el último mensaje recibido en Streamlit Session State
         st.session_state['last_mqtt_message'] = f"Tópico: {msg.topic}, Mensaje: {message_payload}"
-        # Podrías usar una bandera para indicar que hay un nuevo mensaje
+        # Usar una bandera para indicar que hay un nuevo mensaje y forzar un rerun
         st.session_state['new_mqtt_message'] = True
-        # No llamar st.success(f"📡 Mensaje recibido: `{message_payload}`") aquí
+        # Para que Streamlit se actualice, necesitamos forzar un rerun.
+        # Esto *puede* causar problemas si los mensajes llegan muy rápido.
+        # Una forma es usar un truco con excepciones o componentes personalizados.
+        # Forzar un rerun aquí directamente puede ser inestable.
+        # La forma más segura es que el usuario interactúe o usar un componente personalizado (st_mqtt_client).
+        # Por ahora, dependemos del siguiente rerun por interacción del usuario.
+        # Si necesitas tiempo real, considera st_mqtt_client o técnicas más avanzadas.
+
     except Exception as e:
         print(f"Error procesando mensaje MQTT: {e}")
         # st.session_state['mqtt_error'] = f"Error mensaje: {e}" # Peligroso llamar st. aquí
 
 
 # --- Inicialización del cliente MQTT y conexión (una sola vez) ---
-@st.cache_resource # Cachea el cliente para que no se re-inicialice en cada rerun
+# Cachea el cliente para que no se re-inicialice en cada rerun
+@st.cache_resource
 def init_mqtt_client():
     print("Inicializando cliente MQTT...")
-    client = paho.Client(paho.CallbackAPIVersion.VERSION2, "GIT-HUB-Streamlit") # Usar API v2 si es posible
+    # Añadir identificador de cliente para MQTT
+    client_id = f"streamlit-mqtt-client-{time.time()}" # ID único basado en tiempo
+    client = paho.Client(paho.CallbackAPIVersion.VERSION2, client_id)
     client.on_connect = on_connect
     client.on_publish = on_publish
-    client.on_message = on_message
+    client.on_message = on_message # Asigna el callback on_message
+
+    # Configurar Will Message (opcional, para notificar si la app se desconecta inesperadamente)
+    # client.will_set("status/streamlit", "Offline", 1, False)
 
     try:
+        print(f"Intentando conectar a broker {broker}:{port}...")
         client.connect(broker, port, 60) # Conectar
-        # El loop del cliente debe correr en segundo plano
-        # client.loop_start() # Inicia un hilo para el loop de red
-        # O, si solo publicas, no necesitas loop_start()
-        # Si necesitas on_message, SÍ necesitas client.loop_start() o client.loop_forever()
-        # Pero loop_forever bloquea, así que loop_start en otro hilo es mejor
-        # Vamos a iniciar el loop en un hilo aparte para que on_message funcione
-        client_thread = threading.Thread(target=client.loop_forever)
-        client_thread.daemon = True # Permite que el hilo termine cuando la app principal lo haga
-        client_thread.start()
+        # Iniciar el loop de red en un hilo separado para recibir mensajes
+        print("Iniciando loop de red en hilo separado...")
+        client.loop_start()
         print("Cliente MQTT conectado y loop iniciado.")
         return client
     except Exception as e:
@@ -192,8 +336,20 @@ def init_mqtt_client():
         print(f"Error al conectar con el broker MQTT: {e}")
         return None
 
+# Inicializar o recuperar el cliente cacheado
+mqtt_client = init_mqtt_client()
 
-mqtt_client = init_mqtt_client() # Inicializar o recuperar el cliente cacheado
+# Suscribirse al tópico de respuesta después de conectar si el cliente es válido
+# Esto se hará en cada rerun, pero la suscripción es idempotente en MQTT.
+if mqtt_client and mqtt_client.is_connected():
+     try:
+         # Nota: La suscripción también puede hacerse en on_connect para asegurar que ocurre post-reconexión
+         mqtt_client.subscribe(topic_subscribe_cmqtt_r)
+         # print(f"Suscrito al tópico: {topic_subscribe_cmqtt_r}") # Puede ser ruidoso
+     except Exception as e:
+         print(f"Error al suscribirse a tópico {topic_subscribe_cmqtt_r}: {e}")
+         # st.error(f"Error al suscribirse a tópico {topic_subscribe_cmqtt_r}") # Cuidado con llamar st. aquí
+
 
 # Inicializar estado de sesión si no existe
 if 'act1_state' not in st.session_state:
@@ -205,20 +361,33 @@ if 'new_mqtt_message' not in st.session_state:
 
 
 # --- Título principal ---
+# El título ahora está centrado y con brillo gracias al CSS
 st.title("🧬 CyberControl MQTT")
+# La leyenda también está centrada y con color por el CSS
 st.caption("Interfaz neón para control de dispositivos mediante protocolo MQTT en tiempo real")
+
+# Estado de conexión MQTT (simple indicador)
+if mqtt_client and mqtt_client.is_connected():
+    st.markdown("<span style='color: #00ff00;'>🟢 CONECTADO AL NEON-BROKER</span>", unsafe_allow_html=True)
+else:
+    st.markdown("<span style='color: #ff0000;'>🔴 DESCONECTADO DEL NEON-BROKER</span>", unsafe_allow_html=True)
+
 
 # Versión del sistema
 st.markdown(f"💻 Versión de Python: `{platform.python_version()}`")
 
-# Mostrar último mensaje MQTT recibido si hay uno nuevo
+
+# Mostrar último mensaje MQTT recibido si hay uno nuevo (se activa en el siguiente rerun)
 if st.session_state.get('new_mqtt_message', False):
     if st.session_state.get('last_mqtt_message'):
-        st.success(f"📡 Mensaje recibido: `{st.session_state['last_mqtt_message']}`")
-    st.session_state['new_mqtt_message'] = False # Resetear la bandera
+        # Usamos st.markdown para aplicar el color y fuente neón al mensaje
+        st.info(f"```json\n{st.session_state['last_mqtt_message']}\n```") # Usar st.info para un estilo de caja diferente
+        # st.success(f"📡 Mensaje recibido: `{st.session_state['last_mqtt_message']}`") # O usar st.success con el CSS modificado
+
+    st.session_state['new_mqtt_message'] = False # Resetear la bandera después de mostrar
 
 
-# --- Botones ON/OFF ---
+# --- Control binario ---
 st.markdown("### 🔌 Control binario")
 col1, col2 = st.columns(2)
 
@@ -226,61 +395,61 @@ col1, col2 = st.columns(2)
 current_act1_state = st.session_state['act1_state']
 
 with col1:
-    # Usar el estado guardado para decidir si el botón ON debe publicar
-    if st.button('🟢 Encender (ON)'):
-        if mqtt_client:
+    if st.button('🟢 ENCENDER (ON)'):
+        if mqtt_client and mqtt_client.is_connected():
             act1_to_send = "ON"
             message = json.dumps({"Act1": act1_to_send})
             result = mqtt_client.publish(topic_publish_cmqtt_s, message)
             # Verifica el resultado de la publicación si es necesario
-            # result.rc == paho.MQTT_ERR_SUCCESS
+            # if result.rc == paho.MQTT_ERR_SUCCESS:
             st.success(f"✅ Señal enviada: {act1_to_send}")
             st.session_state['act1_state'] = act1_to_send # Actualizar estado en session_state
         else:
-            st.error("Cliente MQTT no conectado.")
+            st.error("Cliente MQTT no conectado. No se pudo enviar señal.")
 
 
 with col2:
-    # Usar el estado guardado para decidir si el botón OFF debe publicar
-    if st.button('🔴 Apagar (OFF)'):
-        if mqtt_client:
+    if st.button('🔴 APAGAR (OFF)'):
+        if mqtt_client and mqtt_client.is_connected():
             act1_to_send = "OFF"
             message = json.dumps({"Act1": act1_to_send})
             result = mqtt_client.publish(topic_publish_cmqtt_s, message)
              # Verifica el resultado de la publicación si es necesario
-            # result.rc == paho.MQTT_ERR_SUCCESS
+            # if result.rc == paho.MQTT_ERR_SUCCESS:
             st.warning(f"⛔ Señal enviada: {act1_to_send}")
             st.session_state['act1_state'] = act1_to_send # Actualizar estado en session_state
         else:
-            st.error("Cliente MQTT no conectado.")
+            st.error("Cliente MQTT no conectado. No se pudo enviar señal.")
 
 # Mostrar el estado actual conocido (opcional)
-st.markdown(f"Estado conocido de Act1: `{current_act1_state}`")
+# st.markdown(f"Estado conocido de Act1: `{current_act1_state}`") # Comentado, menos es más cyberpunk
 
 
 # --- Control analógico ---
 st.markdown("### 🎚️ Señal analógica")
-# Streamlit maneja el estado del slider automáticamente
-analog_value = st.slider('Selecciona el valor analógico a enviar:', 0.0, 100.0)
-st.write(f"🔢 Valor seleccionado: `{analog_value}`")
+analog_value = st.slider('SELECCIONA VALOR ANALÓGICO:', 0.0, 100.0)
+# Usamos st.write que será estilizado por el CSS
+st.write(f"VALOR SELECCIONADO: `{analog_value}`")
 
-if st.button('📤 Enviar valor analógico'):
-    if mqtt_client:
+
+if st.button('📤 ENVIAR VALOR ANALÓGICO'):
+    if mqtt_client and mqtt_client.is_connected():
         message = json.dumps({"Analog": float(analog_value)})
         result = mqtt_client.publish(topic_publish_cmqtt_a, message)
-         # Verifica el resultado de la publicación si es necesario
-        # result.rc == paho.MQTT_ERR_SUCCESS
+        # Verifica el resultado de la publicación si es necesario
+        # if result.rc == paho.MQTT_ERR_SUCCESS:
         st.success(f"📈 Valor analógico enviado: `{analog_value}`")
     else:
-        st.error("Cliente MQTT no conectado.")
-
+        st.error("Cliente MQTT no conectado. No se pudo enviar valor.")
 
 # Footer
 st.markdown("---")
-st.markdown("<center><small>🧠 CyberControl MQTT - Neón Network Interface v2.1 (Corregido)</small></center>", unsafe_allow_html=True)
+st.markdown("<center><small>🧠 CyberControl MQTT - Neón Network Interface v3.0 (Cyberpunk Exagerado)</small></center>", unsafe_allow_html=True)
 
-# Nota: Si necesitas mostrar mensajes recibidos en tiempo real
-# de forma más dinámica sin reruns constantes, tendrías que
-# explorar opciones más avanzadas como el componente st_mqtt_client
-# o usar colas de mensajes y rerun programados, lo cual es más complejo.
-# Esta versión solo muestra el último mensaje recibido al siguiente rerun.
+# Nota sobre mensajes en tiempo real: Streamlit no está diseñado para actualizar
+# la UI continuamente desde hilos secundarios. Para recibir mensajes MQTT
+# y mostrarlos instantáneamente SIN interacción del usuario, necesitarías
+# usar un componente Streamlit personalizado que maneje la comunicación asíncrona
+# y notifique a Streamlit para reruns (como st_mqtt_client si es compatible).
+# La implementación actual solo mostrará el último mensaje recibido después de la siguiente
+# interacción del usuario que cause un rerun.
