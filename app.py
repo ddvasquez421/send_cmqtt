@@ -4,57 +4,77 @@ import streamlit as st
 import json
 import platform
 
-# Estilo visual cibernético robusto
+# Configuración visual
 st.set_page_config(page_title="CyberControl MQTT", layout="centered", page_icon="🧬")
 st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
 <style>
-    html, body, [class*="css"]  {
-        background-color: #0f0f1a;
-        color: #00ffcc;
-        font-family: 'Orbitron', sans-serif;
-    }
-    h1, h2, h3, h4, h5 {
-        color: #00ffff;
-        font-family: 'Orbitron', sans-serif;
-    }
-    .stButton>button {
-        background-color: #1f1f2e;
-        color: #00ffcc;
-        border: 1px solid #00ffcc;
-        border-radius: 8px;
-        padding: 0.5em 1.5em;
-        font-size: 16px;
-    }
-    .stSlider .st-bo {
-        background: linear-gradient(to right, #00ffcc, #0077ff) !important;
-    }
-    .stSlider .st-cg {
-        color: #00ffcc !important;
-    }
-    .st-cf {
-        color: #00ffcc !important;
-    }
-    .stTextInput>div>div>input {
-        background-color: #1f1f2e;
-        color: #00ffcc;
-        border: 1px solid #00ffcc;
-    }
+html, body, [class*="css"] {
+    font-family: 'Orbitron', sans-serif;
+    background: url('https://media.giphy.com/media/3o6ZtaO9BZHcOjmErm/giphy.gif') no-repeat center center fixed;
+    background-size: cover;
+    color: #00fff7 !important;
+}
+
+h1, h2, h3, h4, h5 {
+    color: #00ffff;
+    text-shadow: 0 0 10px #00ffff;
+}
+
+.stButton>button {
+    background: transparent;
+    border: 2px solid #00fff7;
+    color: #00fff7;
+    padding: 0.75em 2em;
+    font-size: 16px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px #00fff7, 0 0 20px #00b7ff;
+    transition: all 0.3s ease-in-out;
+}
+
+.stButton>button:hover {
+    background-color: #00fff7;
+    color: black;
+    box-shadow: 0 0 25px #00fff7;
+}
+
+.stSlider > div > div > div {
+    background: linear-gradient(to right, #00fff7, #00b7ff) !important;
+    border-radius: 8px;
+}
+
+.stSlider label, .st-cf, .st-cg, .st-eb {
+    color: #00fff7 !important;
+}
+
+.stTextInput>div>div>input {
+    background-color: #1f1f2e;
+    color: #00ffcc;
+    border: 1px solid #00ffcc;
+}
+
+hr {
+    border-top: 1px solid #00fff7;
+}
+
+footer {
+    color: #00fff7;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# Título
+# Título principal
 st.title("🧬 CyberControl MQTT")
-st.caption("Interfaz de control y envío de señales mediante protocolo MQTT en tiempo real")
+st.caption("Interfaz neón para control de dispositivos mediante protocolo MQTT en tiempo real")
 
-# Info del sistema
+# Versión del sistema
 st.markdown(f"💻 Versión de Python: `{platform.python_version()}`")
 
-# Variables
+# Variables iniciales
 values = 0.0
 act1 = "OFF"
 
-# MQTT Callbacks
+# Funciones de MQTT
 def on_publish(client, userdata, result):
     print("Dato publicado.")
     pass
@@ -65,13 +85,14 @@ def on_message(client, userdata, message):
     message_received = str(message.payload.decode("utf-8"))
     st.success(f"📡 Mensaje recibido: `{message_received}`")
 
-# Conexión MQTT
+# Configuración del cliente MQTT
 broker = "157.230.214.127"
 port = 1883
 client1 = paho.Client("GIT-HUB")
 client1.on_message = on_message
 
 # Botones ON/OFF
+st.markdown("### 🔌 Control binario")
 col1, col2 = st.columns(2)
 with col1:
     if st.button('🟢 Encender (ON)'):
@@ -82,6 +103,7 @@ with col1:
         message = json.dumps({"Act1": act1})
         client1.publish("cmqtt_s", message)
         st.success("✅ Señal enviada: ON")
+
 with col2:
     if st.button('🔴 Apagar (OFF)'):
         act1 = "OFF"
@@ -92,8 +114,8 @@ with col2:
         client1.publish("cmqtt_s", message)
         st.warning("⛔ Señal enviada: OFF")
 
-# Slider y envío de valor analógico
-st.markdown("### 🎚️ Control de señal analógica")
+# Control analógico
+st.markdown("### 🎚️ Señal analógica")
 values = st.slider('Selecciona el valor analógico a enviar:', 0.0, 100.0)
 st.write(f"🔢 Valor seleccionado: `{values}`")
 
@@ -107,4 +129,4 @@ if st.button('📤 Enviar valor analógico'):
 
 # Footer
 st.markdown("---")
-st.markdown("<center><sub>CyberControl MQTT - by NeuronLink Systems</sub></center>", unsafe_allow_html=True)
+st.markdown("<center><small>🧠 CyberControl MQTT - Neón Network Interface v2.0</small></center>", unsafe_allow_html=True)
