@@ -70,7 +70,7 @@ st.title("Cyberpunk MQTT Control")
 # Cargar la imagen "roboto2"
 image_path = "Roboto2.png"
 try:
-    image = st.image(image_path, caption="Imagen Roboto2 Cargada", use_column_width=True)
+    image = st.image(image_path, caption="Imagen Roboto2 Cargada", use_container_width=True)
 except FileNotFoundError:
     st.write("La imagen 'roboto2.png' no se encontró. Por favor, colócala en el directorio adecuado.")
 
