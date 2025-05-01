@@ -68,7 +68,7 @@ st.markdown("""
 st.title("Cyberpunk MQTT Control")
 
 # Cargar la imagen "roboto2"
-image_path = "roboto2.png"
+image_path = "Roboto2.png"
 try:
     image = st.image(image_path, caption="Imagen Roboto2 Cargada", use_column_width=True)
 except FileNotFoundError:
