@@ -67,13 +67,12 @@ st.markdown("""
 # Título de la aplicación
 st.title("Cyberpunk MQTT Control")
 
-# Cargar la imagen desde GitHub
-image_url = "https://raw.githubusercontent.com/usuario/repositorio/main/ruta/a/la/imagen/roboto2.png"
+# Cargar la imagen "roboto2"
+image_path = "roboto2.png"
 try:
-    image = st.image(image_url, caption="Imagen Roboto2 Cargada", use_container_width=True)
-except Exception as e:
-    st.write(f"Error al cargar la imagen: {e}")
-
+    image = st.image(image_path, caption="Imagen Roboto2 Cargada", use_column_width=True)
+except FileNotFoundError:
+    st.write("La imagen 'roboto2.png' no se encontró. Por favor, colócala en el directorio adecuado.")
 
 # MQTT Broker
 broker = "157.230.214.127"
